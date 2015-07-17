@@ -1,0 +1,33 @@
+  - name: Create groups
+    group: state=present name={{ item.key }} gid={{ item.value.gid }}
+    with_dict: group
+    tags: [ "groups" ]
+
+  - name: Generate user accounts
+    user:
+      name: "{{ item.name }}"
+      comment: "{{ item.comment }}"
+      password: "{{ item.password | default(omit) }}"
+      uid: "{{ item.uid }}"
+      group: "{{ item.group }}"
+      groups: "{{ item.groups }}"
+      shell: "{{ item.shell | default('/bin/bash') }}"
+    with_items: users
+    tags: [ "users" ]
+
+  - name: add public keys
+    authorized_key:
+      user: "{{ item.0.name }}"
+      key: "{{ item.1 | default(omit) }}"
+      key_options: "{{ item.0.key_options | default(omit) }}"
+    with_subelements:
+    - users
+    - pub_key
+#    when: pub_key is defined
+    ignore_errors: True
+    tags: [ "pub_key" ]
+
+  - name: Remove accounts for terminated users
+    user: name={{ item }} state=absent
+    with_items: term_users
+    tags: [ "term_users" ]
